@@ -425,6 +425,37 @@ class DBManager:
                     is_valid BOOLEAN DEFAULT 1
                 );
 
+                -- Tabla de pestañas del notebook
+                CREATE TABLE IF NOT EXISTS notebook_tabs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
+                    content TEXT,
+                    category_id INTEGER,
+                    item_type TEXT,
+                    tags TEXT,
+                    description TEXT,
+                    is_sensitive BOOLEAN DEFAULT 0,
+                    is_active BOOLEAN DEFAULT 1,
+                    is_archived BOOLEAN DEFAULT 0,
+                    position INTEGER NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+                );
+
+                -- Tabla de grupos de tags
+                CREATE TABLE IF NOT EXISTS tag_groups (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL UNIQUE,
+                    description TEXT,
+                    tags TEXT,
+                    color TEXT,
+                    icon TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    is_active BOOLEAN DEFAULT 1
+                );
+
                 -- ÍNDICES para optimización
                 CREATE INDEX IF NOT EXISTS idx_categories_order ON categories(order_index);
                 CREATE INDEX IF NOT EXISTS idx_items_category ON items(category_id);
@@ -445,6 +476,11 @@ class DBManager:
                 CREATE INDEX IF NOT EXISTS idx_process_items_order ON process_items(process_id, step_order);
                 CREATE INDEX IF NOT EXISTS idx_item_usage_history ON item_usage_history(item_id, used_at DESC);
                 CREATE INDEX IF NOT EXISTS idx_sessions_valid ON sessions(is_valid, expires_at);
+                CREATE INDEX IF NOT EXISTS idx_notebook_tabs_category ON notebook_tabs(category_id);
+                CREATE INDEX IF NOT EXISTS idx_notebook_tabs_position ON notebook_tabs(position);
+                CREATE INDEX IF NOT EXISTS idx_notebook_tabs_updated ON notebook_tabs(updated_at DESC);
+                CREATE INDEX IF NOT EXISTS idx_tag_groups_active ON tag_groups(is_active) WHERE is_active = 1;
+                CREATE INDEX IF NOT EXISTS idx_tag_groups_name ON tag_groups(name);
 
                 -- Configuración inicial por defecto
                 INSERT OR IGNORE INTO settings (key, value) VALUES
