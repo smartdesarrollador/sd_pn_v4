@@ -1792,20 +1792,30 @@ class GlobalSearchPanel(QWidget):
 
     def closeEvent(self, event):
         """Handle window close event"""
-        # Ignorar el evento inicialmente para aplicar animación
+        # Si ya estamos cerrando con animación, aceptar y salir
+        if hasattr(self, '_closing_with_animation') and self._closing_with_animation:
+            self.window_closed.emit()
+            event.accept()
+            return
+
+        # Primera vez: iniciar animación
         event.ignore()
 
         # Cerrar también la ventana de filtros si está abierta
         if self.filters_window.isVisible():
             self.filters_window.close()
 
+        # Marcar que estamos en proceso de cierre
+        self._closing_with_animation = True
+
         # Crear y ejecutar animación de fade-out
         animation = PanelStyles.create_fade_out_animation(self, duration=150)
 
-        # Cuando termine la animación, cerrar la ventana realmente
+        # Cuando termine la animación, cerrar realmente
         def on_animation_finished():
-            self.window_closed.emit()
-            super(GlobalSearchPanel, self).close()  # Cerrar sin disparar closeEvent nuevamente
+            # Usar QWidget.close() directamente para evitar recursión
+            from PyQt6.QtWidgets import QWidget
+            QWidget.close(self)
 
         animation.finished.connect(on_animation_finished)
         animation.start()
