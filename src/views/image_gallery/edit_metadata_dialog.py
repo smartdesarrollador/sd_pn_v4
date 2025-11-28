@@ -121,6 +121,19 @@ class EditMetadataDialog(QDialog):
         self.description_input.setMaximumHeight(100)
         form_layout.addRow(label_description, self.description_input)
 
+        # Campo: URL
+        label_url = QLabel("URL:")
+        label_url.setObjectName("formLabel")
+        self.url_input = QLineEdit()
+        self.url_input.setPlaceholderText("URL opcional (se abrirá al hacer click en la imagen)...")
+        url_help = QLabel("💡 Si agregas una URL, al hacer click en la imagen se abrirá en el navegador")
+        url_help.setObjectName("helpText")
+        url_help.setWordWrap(True)
+        url_layout = QVBoxLayout()
+        url_layout.addWidget(self.url_input)
+        url_layout.addWidget(url_help)
+        form_layout.addRow(label_url, url_layout)
+
         # Campo: Favorito
         label_favorite = QLabel("Favorito:")
         label_favorite.setObjectName("formLabel")
@@ -212,6 +225,11 @@ class EditMetadataDialog(QDialog):
             if current_description:
                 self.description_input.setPlainText(current_description)
 
+            # URL
+            current_url = self.item_data.get('preview_url', '')
+            if current_url:
+                self.url_input.setText(current_url)
+
             # Favorito
             is_favorite = self.item_data.get('is_favorite', False)
             self.favorite_checkbox.setChecked(is_favorite)
@@ -262,6 +280,13 @@ class EditMetadataDialog(QDialog):
             new_description = self.description_input.toPlainText().strip()
             if new_description != self.item_data.get('description', ''):
                 updated_data['description'] = new_description
+
+            # URL
+            new_url = self.url_input.text().strip()
+            # Permitir establecer URL o limpiarla (None)
+            current_url = self.item_data.get('preview_url', '')
+            if new_url != current_url:
+                updated_data['preview_url'] = new_url if new_url else None
 
             # Favorito
             new_favorite = self.favorite_checkbox.isChecked()
@@ -314,6 +339,12 @@ class EditMetadataDialog(QDialog):
                 color: #888888;
                 font-size: 8pt;
                 font-style: italic;
+            }
+            #helpText {
+                color: #888888;
+                font-size: 8pt;
+                font-style: italic;
+                margin-top: 4px;
             }
             #separator {
                 background-color: #3d3d3d;
