@@ -21,6 +21,8 @@ from src.core.project_export_manager import ProjectExportManager
 from src.database.db_manager import DBManager
 from src.views.widgets.project_relation_widget import ProjectRelationWidget
 from src.views.widgets.project_component_widget import ProjectComponentWidget
+from src.views.widgets.project_card_widget import ProjectCardWidget
+from src.views.widgets.responsive_card_grid import ResponsiveCardGrid
 
 logger = logging.getLogger(__name__)
 
@@ -206,7 +208,7 @@ class ProjectsWindow(QMainWindow):
         self.toolbar = self._create_toolbar()
         layout.addWidget(self.toolbar)
 
-        # Canvas scrollable
+        # Canvas scrollable para modo edición (lista vertical)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet("border: none;")
@@ -217,7 +219,13 @@ class ProjectsWindow(QMainWindow):
         self.canvas_layout.addStretch()
 
         scroll.setWidget(self.canvas_widget)
-        layout.addWidget(scroll)
+        self.edit_mode_container = scroll
+        layout.addWidget(self.edit_mode_container)
+
+        # Grid responsive para modo limpio (cards)
+        self.clean_mode_grid = ResponsiveCardGrid()
+        self.clean_mode_grid.setVisible(False)  # Oculto por defecto
+        layout.addWidget(self.clean_mode_grid)
 
         # Botones inferiores (solo en modo edición)
         self.bottom_buttons = QWidget()
@@ -350,17 +358,25 @@ class ProjectsWindow(QMainWindow):
         self.refresh_btn.setVisible(True)  # Mostrar botón refrescar
         self.edit_project_btn.setVisible(True)  # Mostrar botón editar
 
-        # Limpiar canvas
+        # Limpiar canvas y grid
         self._clear_canvas()
+        self.clean_mode_grid.clear_cards()
 
         # Cargar contenido ordenado
         content = self.db.get_project_content_ordered(project_id)
 
-        for item in content:
-            if item['type'] == 'relation':
-                self._add_relation_widget(item)
-            else:  # component
-                self._add_component_widget(item)
+        # Cargar según el modo actual
+        if self._view_mode == 'edit':
+            # Modo edición: usar widgets verticales
+            for item in content:
+                if item['type'] == 'relation':
+                    self._add_relation_widget(item)
+                else:  # component
+                    self._add_component_widget(item)
+        else:
+            # Modo limpio: usar cards en grid
+            for item in content:
+                self._add_card_widget(item)
 
     def _clear_canvas(self):
         """Limpia el canvas eliminando todos los widgets"""
@@ -412,6 +428,57 @@ class ProjectsWindow(QMainWindow):
         widget.checkbox_changed.connect(lambda component_id, checked: self._on_checkbox_changed('component', component_id, component, checked))
 
         self.canvas_layout.insertWidget(self.canvas_layout.count() - 1, widget)
+
+    def _add_card_widget(self, item):
+        """Agrega una card al grid (modo limpio)"""
+        # Determinar tipo de elemento
+        if item.get('entity_type'):
+            # Es una relación (tag, item, category, list, table, process)
+            entity_type = item['entity_type']
+
+            # Obtener metadata del elemento
+            metadata = self.project_manager.get_entity_metadata(
+                entity_type,
+                item['entity_id']
+            )
+
+            # Agregar descripción de la relación a la metadata
+            metadata['description'] = item.get('description', '')
+
+            # Crear card
+            card = ProjectCardWidget(
+                item_data=metadata,
+                item_type=entity_type,
+                parent=self.clean_mode_grid
+            )
+
+        else:
+            # Es un componente (comment, alert, note, divider)
+            component_type = item['component_type']
+
+            # Saltar divisores en modo limpio (no tienen sentido en grid)
+            if component_type == 'divider':
+                return
+
+            # Preparar datos para la card
+            card_data = {
+                'name': f"{component_type.title()}",
+                'content': item.get('content', ''),
+                'icon': ProjectCardWidget.TYPE_ICONS.get(component_type, '💬')
+            }
+
+            # Crear card
+            card = ProjectCardWidget(
+                item_data=card_data,
+                item_type=component_type,
+                parent=self.clean_mode_grid
+            )
+
+        # Conectar señal de click para copiar
+        card.clicked.connect(self._copy_to_clipboard)
+
+        # Agregar card al grid
+        self.clean_mode_grid.add_card(card)
 
     def _on_relation_delete(self, relation_id: int):
         """Maneja eliminación de relación"""
@@ -669,14 +736,22 @@ class ProjectsWindow(QMainWindow):
         self.bottom_buttons.setVisible(True)
         self.mode_toggle_btn.setText("👁️ Vista Limpia")
 
+        # Mostrar container de modo edición, ocultar grid
+        self.edit_mode_container.setVisible(True)
+        self.clean_mode_grid.setVisible(False)
+
         if self.current_project_id:
             self.load_project(self.current_project_id)
 
     def _apply_clean_view_mode(self):
-        """Aplica estilo de Modo Vista Amigable"""
+        """Aplica estilo de Modo Vista Amigable (Grid de Cards)"""
         self.toolbar.setVisible(False)
         self.bottom_buttons.setVisible(False)
         self.mode_toggle_btn.setText("📝 Modo Edición")
+
+        # Ocultar container de modo edición, mostrar grid
+        self.edit_mode_container.setVisible(False)
+        self.clean_mode_grid.setVisible(True)
 
         if self.current_project_id:
             self.load_project(self.current_project_id)
