@@ -12,7 +12,8 @@ from pathlib import Path
 import logging
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from views.widgets.tag_group_selector import TagGroupSelector
+from views.widgets.project_tag_selector import ProjectTagSelector
+from core.global_tag_manager import GlobalTagManager
 
 logger = logging.getLogger(__name__)
 
@@ -29,22 +30,25 @@ class SaveSnippetDialog(QDialog):
     - Tags (opcional)
     """
 
-    def __init__(self, selected_text: str, categories: list, db_path: str = None, parent=None):
+    def __init__(self, selected_text: str, categories: list, db=None, parent=None):
         """
         Inicializa el dialog.
 
         Args:
             selected_text: Texto seleccionado en el navegador
             categories: Lista de categorías disponibles
-            db_path: Path a la base de datos para TagGroupSelector
+            db: DBManager instance para gestionar tags
             parent: Widget padre
         """
         super().__init__(parent)
         self.selected_text = selected_text
         self.categories = categories
-        self.db_path = db_path
+        self.db = db
         self.selected_category_id = None
         self.selected_type = 'TEXT'  # Default
+
+        # Inicializar GlobalTagManager si db está disponible
+        self.global_tag_manager = GlobalTagManager(self.db) if self.db else None
 
         self.init_ui()
 
@@ -229,71 +233,34 @@ class SaveSnippetDialog(QDialog):
         layout.addWidget(self.description_input)
 
         # === Tags (opcional) ===
-        tags_label = QLabel("Tags: (opcional, separados por comas)")
+        tags_label = QLabel("Tags:")
         tags_label.setStyleSheet("font-weight: bold; color: #888888;")
         layout.addWidget(tags_label)
 
-        self.tags_input = QLineEdit()
-        self.tags_input.setPlaceholderText("Ej: python, validación, regex")
-        self.tags_input.setStyleSheet("""
-            QLineEdit {
-                background-color: #2d2d2d;
-                color: #ffffff;
-                border: 1px solid #3d3d3d;
-                border-radius: 3px;
-                padding: 8px;
-                font-size: 10pt;
-            }
-            QLineEdit:focus {
-                border: 1px solid #00d4ff;
-            }
-        """)
-        layout.addWidget(self.tags_input)
-
-        # Tag Group Selector (optional) - wrapped in scroll area
-        if self.db_path:
-            try:
-                self.tag_group_selector = TagGroupSelector(self.db_path, self)
-                self.tag_group_selector.tags_changed.connect(self.on_tag_group_changed)
-
-                # Create scroll area for tag group selector
-                tags_scroll_area = QScrollArea()
-                tags_scroll_area.setWidget(self.tag_group_selector)
-                tags_scroll_area.setWidgetResizable(True)
-                tags_scroll_area.setFixedHeight(120)  # Fixed height with scroll
-                tags_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-                tags_scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-                tags_scroll_area.setFrameShape(QScrollArea.Shape.NoFrame)
-                tags_scroll_area.setStyleSheet("""
-                    QScrollArea {
-                        border: 1px solid #3d3d3d;
-                        border-radius: 4px;
-                        background-color: #2d2d2d;
-                    }
-                    QScrollBar:vertical {
-                        background-color: #2d2d2d;
-                        width: 12px;
-                        border-radius: 6px;
-                    }
-                    QScrollBar::handle:vertical {
-                        background-color: #5a5a5a;
-                        border-radius: 6px;
-                        min-height: 20px;
-                    }
-                    QScrollBar::handle:vertical:hover {
-                        background-color: #007acc;
-                    }
-                    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-                        height: 0px;
-                    }
-                """)
-
-                layout.addWidget(tags_scroll_area)
-            except Exception as e:
-                logger.warning(f"Could not initialize TagGroupSelector: {e}")
-                self.tag_group_selector = None
+        # Usar ProjectTagSelector si está disponible GlobalTagManager
+        if self.global_tag_manager:
+            self.tag_selector = ProjectTagSelector(self.global_tag_manager)
+            self.tag_selector.setMinimumHeight(150)
+            layout.addWidget(self.tag_selector)
         else:
-            self.tag_group_selector = None
+            # Fallback: campo de texto simple si no hay manager
+            self.tags_input = QLineEdit()
+            self.tags_input.setPlaceholderText("Ej: python, validación, regex")
+            self.tags_input.setStyleSheet("""
+                QLineEdit {
+                    background-color: #2d2d2d;
+                    color: #ffffff;
+                    border: 1px solid #3d3d3d;
+                    border-radius: 3px;
+                    padding: 8px;
+                    font-size: 10pt;
+                }
+                QLineEdit:focus {
+                    border: 1px solid #00d4ff;
+                }
+            """)
+            layout.addWidget(self.tags_input)
+            self.tag_selector = None
 
         # === Botones ===
         buttons_layout = QHBoxLayout()
@@ -348,18 +315,6 @@ class SaveSnippetDialog(QDialog):
             }
         """)
 
-    def on_tag_group_changed(self, tags: list):
-        """Handle tag group selector changes"""
-        try:
-            # Actualizar el campo de tags con los tags seleccionados
-            if tags:
-                self.tags_input.setText(", ".join(tags))
-            else:
-                self.tags_input.setText("")
-            logger.debug(f"Tags updated from tag group selector: {tags}")
-        except Exception as e:
-            logger.error(f"Error updating tags from tag group selector: {e}")
-
     def _generate_auto_label(self):
         """Genera un label automático basado en el texto seleccionado."""
         # Tomar primeras palabras (máx 50 chars)
@@ -402,9 +357,19 @@ class SaveSnippetDialog(QDialog):
         # Determinar tipo basado en radio button seleccionado
         item_type = 'CODE' if self.code_radio.isChecked() else 'TEXT'
 
-        # Procesar tags (separar por comas y limpiar)
-        tags_text = self.tags_input.text().strip()
-        tags = [tag.strip() for tag in tags_text.split(',') if tag.strip()] if tags_text else []
+        # Obtener tags del ProjectTagSelector o del campo de texto fallback
+        tags = []
+        if self.tag_selector and self.global_tag_manager:
+            # Convertir IDs de tags a nombres
+            selected_ids = self.tag_selector.get_selected_tags()
+            for tag_id in selected_ids:
+                tag = self.global_tag_manager.get_tag(tag_id)
+                if tag:
+                    tags.append(tag.name)
+        elif hasattr(self, 'tags_input'):
+            # Fallback: campo de texto simple
+            tags_text = self.tags_input.text().strip()
+            tags = [tag.strip() for tag in tags_text.split(',') if tag.strip()] if tags_text else []
 
         return {
             'category_id': category_id,
