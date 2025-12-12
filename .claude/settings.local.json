@@ -64,7 +64,11 @@
       "Bash(if not exist \"C:\\Users\\ASUS\\Desktop\\proyectos_python\\widget_sidebar\\util\\FASE4_COMPLETADA.md\" echo.)",
       "Bash(find:*)",
       "Bash(start /B python main.py)",
-      "Bash(echo.:*)"
+      "Bash(echo.:*)",
+      "Bash(if not exist \"src\\views\\project_manager\\widgets\\headers\" mkdir \"src\\views\\project_manager\\widgets\\headers\")",
+      "Bash(if not exist \"src\\views\\project_manager\\widgets\\items\" mkdir \"src\\views\\project_manager\\widgets\\items\")",
+      "Bash(if not exist \"src\\views\\project_manager\\widgets\\common\" mkdir \"src\\views\\project_manager\\widgets\\common\")",
+      "Bash(if not exist \"src\\views\\project_manager\\styles\" mkdir \"src\\views\\project_manager\\styles\")"
     ],
     "deny": [],
     "ask": []
