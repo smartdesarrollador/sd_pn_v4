@@ -198,6 +198,7 @@ class QuickAccessPanel(QWidget):
                     stop:1 #00ccff
                 );
                 border-color: #00ff88;
+                color: #1e1e1e;
             }
             QPushButton:pressed {
                 background-color: #1d1d1d;
