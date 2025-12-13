@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.search.advanced_search_engine import AdvancedSearchEngine
+from core.taskbar_minimizable_mixin import TaskbarMinimizableMixin
 from .left_panel import LeftPanel
 
 logger = logging.getLogger(__name__)
@@ -314,7 +315,7 @@ class ResultsPanel(QWidget):
 
 
 
-class AdvancedSearchWindow(QWidget):
+class AdvancedSearchWindow(QWidget, TaskbarMinimizableMixin):
     """
     Advanced Search Window with multiple views and filters
 
@@ -337,6 +338,10 @@ class AdvancedSearchWindow(QWidget):
         self.db_manager = db_manager
         self.config_manager = config_manager
 
+        # Atributos para minimización a barra lateral
+        self.entity_name = "Búsqueda Avanzada"
+        self.entity_icon = "🔍"
+
         # Initialize search engine
         self.search_engine = AdvancedSearchEngine(db_manager) if db_manager else None
 
@@ -348,6 +353,9 @@ class AdvancedSearchWindow(QWidget):
 
         # Store raw results before tag filtering
         self.raw_search_results = []
+
+        # Configurar soporte de minimización
+        self.setup_taskbar_minimization()
 
         self.init_ui()
         self.setup_shortcuts()
@@ -482,7 +490,7 @@ class AdvancedSearchWindow(QWidget):
                 background-color: #4a4a4a;
             }
         """)
-        minimize_btn.clicked.connect(self.showMinimized)
+        minimize_btn.clicked.connect(self.minimize_to_taskbar)
         layout.addWidget(minimize_btn)
 
         # Maximize button

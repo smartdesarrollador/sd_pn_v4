@@ -12,6 +12,7 @@ from PyQt6.QtGui import QFont, QIcon, QBrush, QColor, QShortcut, QKeySequence
 import logging
 
 from core.dashboard_manager import DashboardManager
+from core.taskbar_minimizable_mixin import TaskbarMinimizableMixin
 from views.dashboard.search_bar_widget import SearchBarWidget
 from views.dashboard.highlight_delegate import HighlightDelegate
 from views.dashboard.action_bar_widget import ActionBarWidget
@@ -21,7 +22,7 @@ from views.dashboard.tags_filter_sidebar import TagsFilterSidebar
 logger = logging.getLogger(__name__)
 
 
-class StructureDashboard(QDialog):
+class StructureDashboard(QDialog, TaskbarMinimizableMixin):
     """Dashboard window for viewing global structure"""
 
     # Signal emitted when user wants to navigate to a category
@@ -43,6 +44,10 @@ class StructureDashboard(QDialog):
         self.highlight_delegate = None  # Will be set in init_ui
         self.is_custom_maximized = False  # Track custom maximize state
 
+        # Atributos para minimización a barra lateral
+        self.entity_name = "Dashboard de Estructura"
+        self.entity_icon = "📊"
+
         # For window dragging
         self.dragging = False
         self.drag_position = None
@@ -59,6 +64,9 @@ class StructureDashboard(QDialog):
         self.filter_buttons = {}  # Referencias a los botones de filtro
         self.active_type_filters = set()  # Set of active item types ('URL', 'CODE', 'PATH', 'TEXT')
         self.type_filter_buttons = {}  # Referencias a los botones de filtro de tipo
+
+        # Configurar soporte de minimización
+        self.setup_taskbar_minimization()
 
         self.init_ui()
         self.setup_shortcuts()

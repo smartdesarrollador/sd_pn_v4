@@ -1,6 +1,9 @@
 """
 Advanced Taskbar Manager - Barra de tareas avanzada para gestión de ventanas/paneles minimizados
 
+⚠️ DEPRECADO: Este módulo está deprecado y será eliminado en futuras versiones.
+⚠️ Usar LeftSidebarManager (src/core/left_sidebar_manager.py) en su lugar.
+
 Características:
 - Soporte para cualquier tipo de ventana/panel (genérico)
 - Scroll horizontal cuando hay muchas pestañas
@@ -11,6 +14,15 @@ Características:
 - Tooltips informativos
 - Animaciones suaves
 """
+import warnings
+
+# Emitir advertencia de deprecación
+warnings.warn(
+    "AdvancedTaskbarManager está deprecado y será eliminado en futuras versiones. "
+    "Usar LeftSidebarManager (src/core/left_sidebar_manager.py) en su lugar.",
+    DeprecationWarning,
+    stacklevel=2
+)
 from PyQt6.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QPushButton,
                              QLabel, QScrollArea, QGraphicsDropShadowEffect,
                              QMenu, QListWidget, QListWidgetItem, QLineEdit,

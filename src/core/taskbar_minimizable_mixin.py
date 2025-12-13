@@ -55,18 +55,24 @@ class TaskbarMinimizableMixin:
         logger.debug(f"Taskbar minimization setup for {self._get_window_identifier()}")
 
     def minimize_to_taskbar(self):
-        """Minimizar esta ventana a la barra de tareas avanzada"""
+        """Minimizar esta ventana a la barra lateral izquierda"""
         try:
-            from src.core.advanced_taskbar_manager import get_advanced_taskbar
+            from src.core.left_sidebar_manager import get_left_sidebar
 
-            # Obtener gestor de taskbar
-            taskbar = get_advanced_taskbar()
+            # Obtener gestor de sidebar
+            sidebar = get_left_sidebar()
 
             # Ocultar ventana
             self.hide()
 
-            # Agregar a taskbar
-            taskbar.add_minimized_window(self)
+            # Determinar si es panel o ventana
+            class_name = self.__class__.__name__
+            if 'Panel' in class_name or 'FloatingPanel' in class_name:
+                # Es un panel flotante
+                sidebar.add_minimized_panel(self)
+            else:
+                # Es una ventana especial
+                sidebar.add_minimized_window(self)
 
             # Marcar como minimizada
             self._is_minimized_to_taskbar = True
@@ -75,21 +81,21 @@ class TaskbarMinimizableMixin:
             if hasattr(self, 'minimized_to_taskbar'):
                 self.minimized_to_taskbar.emit()
 
-            logger.info(f"Window minimized to taskbar: {self._get_window_identifier()}")
+            logger.info(f"Window minimized to left sidebar: {self._get_window_identifier()}")
 
         except Exception as e:
-            logger.error(f"Error minimizing to taskbar: {e}", exc_info=True)
+            logger.error(f"Error minimizing to sidebar: {e}", exc_info=True)
 
     def restore_from_taskbar(self):
-        """Restaurar esta ventana desde la barra de tareas"""
+        """Restaurar esta ventana desde la barra lateral"""
         try:
-            from src.core.advanced_taskbar_manager import get_advanced_taskbar
+            from src.core.left_sidebar_manager import get_left_sidebar
 
-            # Obtener gestor de taskbar
-            taskbar = get_advanced_taskbar()
+            # Obtener gestor de sidebar
+            sidebar = get_left_sidebar()
 
             # Restaurar ventana
-            taskbar.restore_window(self)
+            sidebar.restore_item(self)
 
             # Marcar como no minimizada
             self._is_minimized_to_taskbar = False
@@ -98,10 +104,10 @@ class TaskbarMinimizableMixin:
             if hasattr(self, 'restored_from_taskbar'):
                 self.restored_from_taskbar.emit()
 
-            logger.info(f"Window restored from taskbar: {self._get_window_identifier()}")
+            logger.info(f"Window restored from left sidebar: {self._get_window_identifier()}")
 
         except Exception as e:
-            logger.error(f"Error restoring from taskbar: {e}", exc_info=True)
+            logger.error(f"Error restoring from sidebar: {e}", exc_info=True)
 
     def add_minimize_button(self, header_layout: QHBoxLayout, position: int = -1):
         """
@@ -171,20 +177,20 @@ class TaskbarMinimizableMixin:
 
     def closeEvent(self, event):
         """
-        Override closeEvent para remover de taskbar al cerrar
+        Override closeEvent para remover de sidebar al cerrar
 
         IMPORTANTE: Si la clase que usa el mixin ya tiene un closeEvent,
         debe llamar a super().closeEvent(event) o a TaskbarMinimizableMixin.closeEvent(self, event)
         """
         try:
-            # Si está minimizada, remover de taskbar
+            # Si está minimizada, remover de sidebar
             if getattr(self, '_is_minimized_to_taskbar', False):
-                from src.core.advanced_taskbar_manager import get_advanced_taskbar
-                taskbar = get_advanced_taskbar()
-                taskbar.remove_minimized_window(self)
+                from src.core.left_sidebar_manager import get_left_sidebar
+                sidebar = get_left_sidebar()
+                sidebar.remove_minimized_item(self)
 
         except Exception as e:
-            logger.error(f"Error removing from taskbar on close: {e}")
+            logger.error(f"Error removing from sidebar on close: {e}")
 
         # Llamar al closeEvent original si existe
         if hasattr(super(), 'closeEvent'):
@@ -215,20 +221,27 @@ def make_window_minimizable(window, auto_minimize: bool = False) -> None:
 
     # Método minimize_to_taskbar
     def minimize_to_taskbar():
-        from src.core.advanced_taskbar_manager import get_advanced_taskbar
-        taskbar = get_advanced_taskbar()
+        from src.core.left_sidebar_manager import get_left_sidebar
+        sidebar = get_left_sidebar()
         window.hide()
-        taskbar.add_minimized_window(window)
+
+        # Determinar si es panel o ventana
+        class_name = window.__class__.__name__
+        if 'Panel' in class_name or 'FloatingPanel' in class_name:
+            sidebar.add_minimized_panel(window)
+        else:
+            sidebar.add_minimized_window(window)
+
         window._is_minimized_to_taskbar = True
-        logger.info(f"Window minimized to taskbar (dynamic)")
+        logger.info(f"Window minimized to left sidebar (dynamic)")
 
     # Método restore_from_taskbar
     def restore_from_taskbar():
-        from src.core.advanced_taskbar_manager import get_advanced_taskbar
-        taskbar = get_advanced_taskbar()
-        taskbar.restore_window(window)
+        from src.core.left_sidebar_manager import get_left_sidebar
+        sidebar = get_left_sidebar()
+        sidebar.restore_item(window)
         window._is_minimized_to_taskbar = False
-        logger.info(f"Window restored from taskbar (dynamic)")
+        logger.info(f"Window restored from left sidebar (dynamic)")
 
     # Método add_minimize_button
     def add_minimize_button(header_layout, position=-1):
@@ -279,9 +292,9 @@ def make_window_minimizable(window, auto_minimize: bool = False) -> None:
 
     def new_close_event(event):
         if window._is_minimized_to_taskbar:
-            from src.core.advanced_taskbar_manager import get_advanced_taskbar
-            taskbar = get_advanced_taskbar()
-            taskbar.remove_minimized_window(window)
+            from src.core.left_sidebar_manager import get_left_sidebar
+            sidebar = get_left_sidebar()
+            sidebar.remove_minimized_item(window)
         original_close_event(event)
 
     window.closeEvent = new_close_event

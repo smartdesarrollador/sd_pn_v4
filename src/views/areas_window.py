@@ -18,6 +18,7 @@ import logging
 
 from src.core.area_manager import AreaManager
 from src.core.area_export_manager import AreaExportManager
+from src.core.taskbar_minimizable_mixin import TaskbarMinimizableMixin
 from src.database.db_manager import DBManager
 from src.views.widgets.area_relation_widget import AreaRelationWidget
 from src.views.widgets.area_component_widget import AreaComponentWidget
@@ -28,7 +29,7 @@ from src.views.area_manager.area_full_view_panel import AreaFullViewPanel
 logger = logging.getLogger(__name__)
 
 
-class AreasWindow(QMainWindow):
+class AreasWindow(QMainWindow, TaskbarMinimizableMixin):
     """Ventana principal de gestión de áreas"""
 
     closed = pyqtSignal()
@@ -42,10 +43,17 @@ class AreasWindow(QMainWindow):
         self._view_mode = 'edit'  # 'edit', 'clean', o 'full'
         self._selected_insert_position = None  # (item_type, item_id, order_index) del elemento seleccionado
 
+        # Atributos para minimización a barra lateral
+        self.entity_name = "Gestión de Áreas"
+        self.entity_icon = "🗂️"
+
         # Estado de paneles laterales
         self._left_panel_collapsed = True  # Colapsado por defecto en modo compacto
         self._right_panel_visible = False  # Drawer de filtros oculto por defecto
         self._is_compact_mode = True  # Modo compacto por defecto
+
+        # Configurar soporte de minimización
+        self.setup_taskbar_minimization()
 
         self.init_ui()
         self.load_areas()

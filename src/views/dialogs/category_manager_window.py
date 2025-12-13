@@ -14,6 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from models.category import Category
+from core.taskbar_minimizable_mixin import TaskbarMinimizableMixin
 from views.widgets.category_list_item import CategoryListItem
 from views.dialogs.category_form_dialog import CategoryFormDialog
 
@@ -157,7 +158,7 @@ class CustomTitleBar(QWidget):
             self._on_maximize_clicked()
 
 
-class CategoryManagerWindow(QWidget):
+class CategoryManagerWindow(QWidget, TaskbarMinimizableMixin):
     """
     Window for managing categories with CRUD operations.
 
@@ -183,6 +184,10 @@ class CategoryManagerWindow(QWidget):
         self.controller = controller
         self.db = controller.config_manager.db if controller else None
 
+        # Atributos para minimización a barra lateral
+        self.entity_name = "Gestión de Categorías"
+        self.entity_icon = "📂"
+
         # Data
         self.all_categories = []
         self.filtered_categories = []
@@ -195,6 +200,9 @@ class CategoryManagerWindow(QWidget):
 
         # Window state
         self.normal_geometry = None
+
+        # Configurar soporte de minimización
+        self.setup_taskbar_minimization()
 
         self.init_ui()
         self.load_categories()
@@ -228,7 +236,7 @@ class CategoryManagerWindow(QWidget):
 
         # Custom title bar
         self.title_bar = CustomTitleBar("Gestión de Categorías", self)
-        self.title_bar.minimize_clicked.connect(self.showMinimized)
+        self.title_bar.minimize_clicked.connect(self.minimize_to_taskbar)
         self.title_bar.maximize_clicked.connect(self._toggle_maximize)
         self.title_bar.close_clicked.connect(self.hide)  # Hide instead of close
         main_layout.addWidget(self.title_bar)

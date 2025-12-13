@@ -71,6 +71,7 @@ from controllers.main_controller import MainController
 from views.main_window import MainWindow
 from core.auth_manager import AuthManager
 from core.session_manager import SessionManager
+from core.left_sidebar_manager import get_left_sidebar
 from views.first_time_wizard import FirstTimeWizard
 from views.login_dialog import LoginDialog
 
@@ -221,6 +222,11 @@ def main():
         logger.info("Showing window...")
         window.show()
         logger.info("Window shown")
+
+        # Initialize left sidebar manager (singleton)
+        logger.info("Initializing left sidebar manager...")
+        left_sidebar = get_left_sidebar()
+        logger.info("Left sidebar manager initialized")
 
         logger.info(f"[OK] Loaded {len(categories)} categories from SQLite")
         logger.info("[OK] UI fully functional")
