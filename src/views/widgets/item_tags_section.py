@@ -99,8 +99,8 @@ class ItemTagsSection(QWidget):
         scroll_area.setWidgetResizable(True)
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        scroll_area.setMaximumHeight(120)  # Reducido de 150
-        scroll_area.setMinimumHeight(40)   # Altura mínima
+        scroll_area.setMaximumHeight(200)  # Aumentado para permitir ver más filas de tags
+        scroll_area.setMinimumHeight(50)   # Altura mínima
         scroll_area.setStyleSheet("""
             QScrollArea {
                 background-color: transparent;
@@ -270,8 +270,13 @@ class ItemTagsSection(QWidget):
     def _clear_chips(self):
         """Limpia todos los chips de tags"""
         for chip in self.tag_chips:
-            self.tags_layout.removeWidget(chip)
             chip.deleteLater()
+
+        # Limpiar el layout
+        while self.tags_layout.count():
+            item = self.tags_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
 
         self.tag_chips.clear()
 
@@ -350,10 +355,15 @@ class ItemTagsSection(QWidget):
         Args:
             tag_name: Nombre del tag a eliminar
         """
-        for chip in self.tag_chips[:]:
+        for i, chip in enumerate(self.tag_chips[:]):
             if chip.get_tag_name() == tag_name:
                 self.tag_chips.remove(chip)
-                self.tags_layout.removeWidget(chip)
+
+                # Remover del layout usando takeAt
+                item = self.tags_layout.takeAt(i)
+                if item and item.widget():
+                    item.widget().deleteLater()
+
                 chip.deleteLater()
                 logger.info(f"Tag '{tag_name}' eliminado")
 

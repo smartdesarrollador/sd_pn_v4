@@ -10,9 +10,9 @@ Componentes:
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QScrollArea, QSizePolicy
+    QFrame, QScrollArea, QSizePolicy, QLayout
 )
-from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtCore import pyqtSignal, Qt, QRect, QSize, QPoint
 from PyQt6.QtGui import QFont
 import logging
 
@@ -127,17 +127,118 @@ class TagChip(QWidget):
         return self.tag_name
 
 
-class FlowLayout(QHBoxLayout):
+class FlowLayout(QLayout):
     """
-    Layout que acomoda widgets en flujo horizontal con wrap
+    Layout que acomoda widgets en flujo horizontal con wrap automático a múltiples filas
 
-    Nota: Implementación simplificada para tags
+    Basado en el ejemplo oficial de Qt: https://doc.qt.io/qt-6/qtwidgets-layouts-flowlayout-example.html
+    Los widgets se colocan de izquierda a derecha y cuando no hay espacio, se envuelven a la siguiente fila.
     """
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setSpacing(8)  # Espacio entre tags
-        self.setContentsMargins(6, 6, 6, 6)
+        self.item_list = []
+        self.h_space = 8  # Espacio horizontal entre items
+        self.v_space = 6  # Espacio vertical entre filas
+
+    def __del__(self):
+        item = self.takeAt(0)
+        while item:
+            item = self.takeAt(0)
+
+    def addItem(self, item):
+        """Agrega un item al layout"""
+        self.item_list.append(item)
+
+    def count(self):
+        """Retorna el número de items en el layout"""
+        return len(self.item_list)
+
+    def itemAt(self, index):
+        """Retorna el item en el índice especificado"""
+        if 0 <= index < len(self.item_list):
+            return self.item_list[index]
+        return None
+
+    def takeAt(self, index):
+        """Remueve y retorna el item en el índice especificado"""
+        if 0 <= index < len(self.item_list):
+            return self.item_list.pop(index)
+        return None
+
+    def expandingDirections(self):
+        """Retorna las direcciones en las que el layout puede expandirse"""
+        return Qt.Orientation(0)
+
+    def hasHeightForWidth(self):
+        """Indica que el layout tiene una altura que depende del ancho"""
+        return True
+
+    def heightForWidth(self, width):
+        """Calcula la altura necesaria para un ancho dado"""
+        height = self._do_layout(QRect(0, 0, width, 0), True)
+        return height
+
+    def setGeometry(self, rect):
+        """Establece la geometría del layout y posiciona todos los items"""
+        super().setGeometry(rect)
+        self._do_layout(rect, False)
+
+    def sizeHint(self):
+        """Retorna el tamaño sugerido del layout"""
+        return self.minimumSize()
+
+    def minimumSize(self):
+        """Calcula el tamaño mínimo del layout"""
+        size = QSize()
+        for item in self.item_list:
+            size = size.expandedTo(item.minimumSize())
+
+        margins = self.contentsMargins()
+        size += QSize(margins.left() + margins.right(), margins.top() + margins.bottom())
+        return size
+
+    def _do_layout(self, rect, test_only):
+        """
+        Realiza el layout de los items
+
+        Args:
+            rect: Rectángulo disponible para el layout
+            test_only: Si es True, solo calcula la altura sin posicionar los items
+
+        Returns:
+            Altura total necesaria
+        """
+        x = rect.x()
+        y = rect.y()
+        line_height = 0
+        spacing_x = self.h_space
+        spacing_y = self.v_space
+
+        for item in self.item_list:
+            widget = item.widget()
+            if widget is None:
+                continue
+
+            # Obtener tamaño del widget
+            widget_size = item.sizeHint()
+            next_x = x + widget_size.width() + spacing_x
+
+            # Si no cabe en la línea actual, pasar a la siguiente línea
+            if next_x - spacing_x > rect.right() and line_height > 0:
+                x = rect.x()
+                y = y + line_height + spacing_y
+                next_x = x + widget_size.width() + spacing_x
+                line_height = 0
+
+            # Posicionar el widget si no es test_only
+            if not test_only:
+                item.setGeometry(QRect(QPoint(x, y), widget_size))
+
+            x = next_x
+            line_height = max(line_height, widget_size.height())
+
+        return y + line_height - rect.y()
 
 
 class ProjectElementTagsSection(QWidget):
@@ -199,8 +300,8 @@ class ProjectElementTagsSection(QWidget):
         scroll_area.setWidgetResizable(True)
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        scroll_area.setMaximumHeight(120)  # Reducido de 150 para más compacto
-        scroll_area.setMinimumHeight(40)   # Altura mínima
+        scroll_area.setMaximumHeight(200)  # Aumentado para permitir ver más filas de tags
+        scroll_area.setMinimumHeight(50)   # Altura mínima
         scroll_area.setStyleSheet("""
             QScrollArea {
                 background-color: transparent;
@@ -294,8 +395,13 @@ class ProjectElementTagsSection(QWidget):
     def _clear_chips(self):
         """Limpia todos los chips de tags"""
         for chip in self.tag_chips:
-            self.tags_layout.removeWidget(chip)
             chip.deleteLater()
+
+        # Limpiar el layout
+        while self.tags_layout.count():
+            item = self.tags_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
 
         self.tag_chips.clear()
 
