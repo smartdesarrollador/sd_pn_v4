@@ -33,8 +33,9 @@ class AreaDataManager:
                 FROM area_element_tag_associations ata
                 JOIN area_element_tags aet ON ata.tag_id = aet.id
                 JOIN area_relations ar ON ata.area_relation_id = ar.id
+                LEFT JOIN area_tag_orders ato ON ato.area_id = ar.area_id AND ato.tag_id = aet.id
                 WHERE ar.area_id = ?
-                ORDER BY aet.name ASC
+                ORDER BY COALESCE(ato.order_index, 999999), aet.name ASC
             """, (area_id,))
             area_tags = [dict(row) for row in cursor.fetchall()]
 
