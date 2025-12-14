@@ -12,7 +12,7 @@ Versión: 1.0
 """
 
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QScrollArea, QLabel, QFrame
+    QWidget, QVBoxLayout, QScrollArea, QLabel, QFrame, QPushButton, QHBoxLayout
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from .styles.full_view_styles import FullViewStyles
@@ -57,6 +57,8 @@ class ProjectFullViewPanel(QWidget):
         self.project_data = None
         self.current_filters = []
         self.current_project_id = None
+        self.tag_headers = []  # Lista para trackear los headers de tags
+        self.all_collapsed = False  # Estado del botón de colapsar todo
 
         # Inicializar UI
         self.init_ui()
@@ -68,6 +70,42 @@ class ProjectFullViewPanel(QWidget):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
+
+        # Header con botón de colapsar todo
+        header_widget = QWidget()
+        header_layout = QHBoxLayout(header_widget)
+        header_layout.setContentsMargins(15, 10, 15, 10)
+        header_layout.setSpacing(10)
+
+        # Botón de colapsar/expandir todo
+        self.toggle_all_btn = QPushButton("Colapsar Todo")
+        self.toggle_all_btn.setFixedHeight(30)
+        self.toggle_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.toggle_all_btn.clicked.connect(self._toggle_all_tags)
+        self.toggle_all_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2C2C2C;
+                color: #32CD32;
+                border: 1px solid #32CD32;
+                border-radius: 4px;
+                padding: 5px 15px;
+                font-size: 12px;
+                font-weight: 600;
+                font-family: 'Segoe UI', Arial, sans-serif;
+            }
+            QPushButton:hover {
+                background-color: #3C3C3C;
+                border-color: #7CFC00;
+                color: #7CFC00;
+            }
+            QPushButton:pressed {
+                background-color: #1C1C1C;
+            }
+        """)
+        header_layout.addWidget(self.toggle_all_btn)
+        header_layout.addStretch()
+
+        main_layout.addWidget(header_widget)
 
         # Scroll Area
         self.scroll_area = QScrollArea()
@@ -181,6 +219,9 @@ class ProjectFullViewPanel(QWidget):
         )
         self.content_layout.addWidget(tag_header)
 
+        # Agregar a la lista de headers para el botón de colapsar todo
+        self.tag_headers.append(tag_header)
+
         # Container para grupos (para poder colapsar)
         tag_container = QWidget()
         tag_container_layout = QVBoxLayout(tag_container)
@@ -219,12 +260,27 @@ class ProjectFullViewPanel(QWidget):
         tag_header.set_tag_info("Otros Items", "#808080", len(items))
         self.content_layout.addWidget(tag_header)
 
+        # Agregar a la lista de headers para el botón de colapsar todo
+        self.tag_headers.append(tag_header)
+
+        # Container para el grupo (para poder colapsar)
+        tag_container = QWidget()
+        tag_container_layout = QVBoxLayout(tag_container)
+        tag_container_layout.setContentsMargins(0, 0, 0, 0)
+        tag_container_layout.setSpacing(8)
+
         # Grupo de items
         group_widget = ItemGroupWidget("Sin clasificar", "other")
         for item_data in items:
             group_widget.add_item(item_data)
 
-        self.content_layout.addWidget(group_widget)
+        tag_container_layout.addWidget(group_widget)
+        self.content_layout.addWidget(tag_container)
+
+        # Conectar colapso/expansión
+        tag_header.toggle_collapsed.connect(
+            lambda collapsed: tag_container.setVisible(not collapsed)
+        )
 
     def apply_filters(self, tag_filters: list[str], match_mode: str = 'OR'):
         """
@@ -287,12 +343,34 @@ class ProjectFullViewPanel(QWidget):
         if self.current_project_id:
             self.load_project(self.current_project_id)
 
+    def _toggle_all_tags(self):
+        """
+        Colapsar o expandir todos los tags
+
+        Alterna entre colapsar todos los tags y expandirlos todos.
+        """
+        # Alternar estado
+        self.all_collapsed = not self.all_collapsed
+
+        # Aplicar a todos los tag headers
+        for tag_header in self.tag_headers:
+            tag_header.set_collapsed(self.all_collapsed)
+
+        # Actualizar texto del botón
+        if self.all_collapsed:
+            self.toggle_all_btn.setText("Expandir Todo")
+        else:
+            self.toggle_all_btn.setText("Colapsar Todo")
+
     def clear_view(self):
         """
         Limpiar todo el contenido de la vista
 
         Elimina todos los widgets del layout de contenido.
         """
+        # Limpiar lista de headers
+        self.tag_headers.clear()
+
         # Eliminar todos los widgets del layout
         while self.content_layout.count():
             child = self.content_layout.takeAt(0)
