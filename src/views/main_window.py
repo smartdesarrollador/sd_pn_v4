@@ -243,6 +243,29 @@ class MainWindow(QMainWindow):
         self.sidebar.close_app_requested.connect(self.close_window)
         main_layout.addWidget(self.sidebar)
 
+        # Set up calendar badge
+        self.setup_calendar_badge()
+
+    def setup_calendar_badge(self):
+        """Initialize calendar notification badge and update timer"""
+        from PyQt6.QtCore import QTimer
+
+        # Set database reference in sidebar
+        if self.config_manager and self.config_manager.db:
+            self.sidebar.set_db_reference(self.config_manager.db)
+            logger.info("Database reference set for calendar badge")
+
+        # Create timer to update badge every minute
+        self.calendar_badge_timer = QTimer(self)
+        self.calendar_badge_timer.timeout.connect(self.update_calendar_badge)
+        self.calendar_badge_timer.start(60000)  # Update every 60 seconds
+        logger.info("Calendar badge update timer started (60s interval)")
+
+    def update_calendar_badge(self):
+        """Update calendar badge count"""
+        if self.sidebar:
+            self.sidebar.update_calendar_badge()
+
     def load_categories(self, categories):
         """Load categories into sidebar"""
         if self.sidebar:
@@ -2306,6 +2329,10 @@ class MainWindow(QMainWindow):
         if not hasattr(self, 'calendar_window') or not self.calendar_window.isVisible():
             logger.info("Creating new CalendarWindow instance...")
             self.calendar_window = CalendarWindow(self.controller, self)
+
+            # Connect window_closed signal to update badge
+            self.calendar_window.window_closed.connect(self.update_calendar_badge)
+
             logger.info(f"CalendarWindow created - Position: {self.calendar_window.pos()}, Size: {self.calendar_window.size()}")
             logger.info("Calling show() on CalendarWindow...")
             self.calendar_window.show()

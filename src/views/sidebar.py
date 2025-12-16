@@ -1,7 +1,7 @@
 """
 Sidebar View - Vertical sidebar with category buttons and scroll navigation
 """
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QScrollArea
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea
 from PyQt6.QtCore import Qt, pyqtSignal, QPropertyAnimation, QEasingCurve
 from PyQt6.QtGui import QFont
 from typing import List
@@ -12,6 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from models.category import Category
 from views.widgets.button_widget import CategoryButton
+from views.widgets.notification_badge import NotificationBadge
 from styles.futuristic_theme import get_theme
 from styles.effects import ScanLineEffect
 
@@ -566,34 +567,47 @@ class Sidebar(QWidget):
         self.browser_button.clicked.connect(self.on_browser_clicked)
         main_layout.addWidget(self.browser_button)
 
-        # Calendar button
-        self.calendar_button = QPushButton("📅")
-        self.calendar_button.setFixedSize(70, 45)
-        self.calendar_button.setToolTip("Calendario y Alertas")
-        self.calendar_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.calendar_button.setStyleSheet(f"""
-            QPushButton {{
+        # Calendar notification badge (replaces button with icon)
+        calendar_container = QWidget()
+        calendar_container.setFixedSize(70, 60)
+        calendar_container.setToolTip("Calendario y Alertas\n(Click para ver notificaciones de hoy)")
+        calendar_container.setCursor(Qt.CursorShape.PointingHandCursor)
+        calendar_container.setStyleSheet(f"""
+            QWidget {{
                 background-color: {self.theme.get_color('background_deep')};
-                color: {self.theme.get_color('text_secondary')};
-                border: none;
                 border-top: 2px solid {self.theme.get_color('surface')};
-                font-size: 16pt;
             }}
-            QPushButton:hover {{
+            QWidget:hover {{
                 background-color: {self.theme.get_color('surface')};
-                color: {self.theme.get_color('primary')};
-            }}
-            QPushButton:pressed {{
-                background: qlineargradient(
-                    x1:0, y1:0, x2:1, y2:0,
-                    stop:0 {self.theme.get_color('primary')},
-                    stop:1 {self.theme.get_color('accent')}
-                );
-                color: {self.theme.get_color('text_primary')};
             }}
         """)
-        self.calendar_button.clicked.connect(self.on_calendar_clicked)
-        main_layout.addWidget(self.calendar_button)
+
+        # Make container clickable
+        calendar_container.mousePressEvent = lambda event: self.on_calendar_clicked()
+
+        # Layout for centering badge
+        calendar_layout = QVBoxLayout(calendar_container)
+        calendar_layout.setContentsMargins(0, 0, 0, 0)
+        calendar_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Large notification badge in center
+        self.calendar_badge = NotificationBadge(calendar_container)
+        self.calendar_badge.setFixedSize(40, 40)  # Medium-large size
+        self.calendar_badge.setStyleSheet("")  # Will be styled by update_badge
+
+        # Center the badge
+        badge_wrapper = QWidget()
+        badge_wrapper_layout = QHBoxLayout(badge_wrapper)
+        badge_wrapper_layout.setContentsMargins(0, 0, 0, 0)
+        badge_wrapper_layout.addStretch()
+        badge_wrapper_layout.addWidget(self.calendar_badge)
+        badge_wrapper_layout.addStretch()
+
+        calendar_layout.addStretch()
+        calendar_layout.addWidget(badge_wrapper)
+        calendar_layout.addStretch()
+
+        main_layout.addWidget(calendar_container)
 
         # Settings button at the bottom
         self.settings_button = QPushButton("⚙")
@@ -835,10 +849,67 @@ class Sidebar(QWidget):
         self.settings_clicked.emit()
 
     def on_calendar_clicked(self):
-        """Handle calendar button click"""
-        logger.info("📅 Calendar button clicked - emitting signal")
-        self.calendar_clicked.emit()
-        logger.info("📅 calendar_clicked signal emitted")
+        """Handle calendar button click - show notifications popup first"""
+        logger.info("📅 Calendar button clicked - showing today's notifications")
+
+        # Show notifications popup if there's a db reference
+        if hasattr(self, 'db') and self.db:
+            self.show_today_notifications()
+        else:
+            # Fall back to opening full calendar
+            self.calendar_clicked.emit()
+
+        logger.info("📅 calendar_clicked handled")
+
+    def show_today_notifications(self):
+        """Show popup with today's events and alerts"""
+        try:
+            from views.dialogs.today_notifications_dialog import TodayNotificationsDialog
+
+            # Get today's data
+            data = self.db.get_today_events_and_alerts()
+            events = data.get('events', [])
+            alerts = data.get('alerts', [])
+
+            logger.info(f"Showing notifications: {len(events)} events, {len(alerts)} alerts")
+
+            # Create and show dialog
+            dialog = TodayNotificationsDialog(events, alerts, self)
+
+            # Connect signal to open full calendar
+            dialog.open_calendar_requested.connect(self.calendar_clicked.emit)
+
+            dialog.exec()
+
+        except Exception as e:
+            logger.error(f"Error showing notifications dialog: {e}", exc_info=True)
+            # Fall back to opening full calendar
+            self.calendar_clicked.emit()
+
+    def update_calendar_badge(self):
+        """Update the calendar notification badge count"""
+        if not hasattr(self, 'calendar_badge') or not hasattr(self, 'db') or not self.db:
+            return
+
+        try:
+            # Get counts from database
+            events_count = self.db.get_today_events_count()
+            alerts_count = self.db.get_today_alerts_count()
+            total = events_count + alerts_count
+
+            # Update badge
+            self.calendar_badge.update_badge(total)
+
+            logger.debug(f"Calendar badge updated: {total} ({events_count} events + {alerts_count} alerts)")
+
+        except Exception as e:
+            logger.error(f"Error updating calendar badge: {e}")
+
+    def set_db_reference(self, db):
+        """Set database reference for calendar badge updates"""
+        self.db = db
+        # Initial badge update
+        self.update_calendar_badge()
 
     def on_component_manager_clicked(self):
         """Handle component manager button click"""

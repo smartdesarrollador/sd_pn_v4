@@ -9587,6 +9587,92 @@ class DBManager:
             logger.error(f"Error al eliminar evento {event_id}: {e}")
             return False
 
+    def get_today_events_count(self) -> int:
+        """
+        Obtener el número de eventos para el día de hoy
+
+        Returns:
+            int: Cantidad de eventos de hoy
+        """
+        from datetime import date
+        today = date.today()
+
+        query = """
+            SELECT COUNT(*) as count
+            FROM calendar_events
+            WHERE DATE(event_datetime) = ?
+            AND status != 'cancelled'
+        """
+
+        result = self.execute_query(query, (today.strftime("%Y-%m-%d"),))
+        return result[0]['count'] if result else 0
+
+    def get_today_alerts_count(self) -> int:
+        """
+        Obtener el número de alertas activas para el día de hoy
+
+        Returns:
+            int: Cantidad de alertas activas de hoy
+        """
+        from datetime import date
+        today = date.today()
+
+        query = """
+            SELECT COUNT(*) as count
+            FROM item_alerts
+            WHERE DATE(alert_datetime) = ?
+            AND status = 'active'
+            AND is_enabled = 1
+        """
+
+        result = self.execute_query(query, (today.strftime("%Y-%m-%d"),))
+        return result[0]['count'] if result else 0
+
+    def get_today_events_and_alerts(self) -> Dict[str, List[Dict]]:
+        """
+        Obtener todos los eventos y alertas del día de hoy
+
+        Returns:
+            Dict con 'events' y 'alerts' del día actual
+        """
+        from datetime import date
+        today = date.today()
+        today_str = today.strftime("%Y-%m-%d")
+
+        # Obtener eventos de hoy
+        events_query = """
+            SELECT
+                e.*,
+                i.label as item_label,
+                i.content as item_content
+            FROM calendar_events e
+            LEFT JOIN items i ON e.item_id = i.id
+            WHERE DATE(e.event_datetime) = ?
+            AND e.status != 'cancelled'
+            ORDER BY e.event_datetime ASC
+        """
+        events = self.execute_query(events_query, (today_str,))
+
+        # Obtener alertas de hoy
+        alerts_query = """
+            SELECT
+                a.*,
+                i.label as item_label,
+                i.content as item_content
+            FROM item_alerts a
+            LEFT JOIN items i ON a.item_id = i.id
+            WHERE DATE(a.alert_datetime) = ?
+            AND a.status = 'active'
+            AND a.is_enabled = 1
+            ORDER BY a.alert_datetime ASC
+        """
+        alerts = self.execute_query(alerts_query, (today_str,))
+
+        return {
+            'events': events or [],
+            'alerts': alerts or []
+        }
+
     # ---------- item_alerts (7 métodos) ----------
 
     def add_item_alert(
