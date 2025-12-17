@@ -13,8 +13,8 @@ class SessionManager:
     """Manages user sessions with secure tokens"""
 
     # Session durations in hours
-    SESSION_DURATION_NORMAL = 1  # 1 hours
-    SESSION_DURATION_REMEMBER = 24  # 24 hours
+    SESSION_DURATION_NORMAL = 87600  # ~10 years (no expiration)
+    SESSION_DURATION_REMEMBER = 8  # 8 hours
 
     def __init__(self, env_file: str = ".env"):
         """
@@ -48,7 +48,7 @@ class SessionManager:
         Create new session with token
 
         Args:
-            remember: If True, session lasts 24 hours; otherwise 8 hours
+            remember: If True, session lasts 8 hours; otherwise no expiration
 
         Returns:
             Session token (random 64-character string)

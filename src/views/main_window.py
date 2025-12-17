@@ -240,7 +240,7 @@ class MainWindow(QMainWindow):
         self.sidebar.create_process_clicked.connect(self.on_create_process_clicked)
         self.sidebar.view_processes_clicked.connect(self.on_view_processes_clicked)
         self.sidebar.process_clicked.connect(self.on_process_clicked)
-        self.sidebar.close_app_requested.connect(self.close_window)
+        self.sidebar.close_app_requested.connect(self.logout_session)
         main_layout.addWidget(self.sidebar)
 
         # Set up calendar badge

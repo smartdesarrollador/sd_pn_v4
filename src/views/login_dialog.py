@@ -92,8 +92,8 @@ class LoginDialog(QDialog):
         main_layout.addSpacing(10)
 
         # Remember checkbox
-        self.remember_checkbox = QCheckBox("Recordar por 24 horas")
-        self.remember_checkbox.setToolTip("Mantener la sesión activa por 24 horas en lugar de 8")
+        self.remember_checkbox = QCheckBox("Recordar por 8 horas")
+        self.remember_checkbox.setToolTip("Mantener la sesión activa por 8 horas")
         main_layout.addWidget(self.remember_checkbox)
 
         main_layout.addStretch()

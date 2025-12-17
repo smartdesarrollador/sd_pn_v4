@@ -153,7 +153,7 @@ class QuickAccessPanel(QWidget):
         main_layout.addStretch()
 
         # Close button at the bottom
-        close_btn = QPushButton("✕  Cerrar")
+        close_btn = QPushButton("✕  Cerrar Sesión")
         close_btn.setFixedHeight(40)
         close_btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         close_btn.setStyleSheet("""
@@ -311,7 +311,7 @@ class QuickAccessPanel(QWidget):
         self.hide()
 
     def on_close_clicked(self):
-        """Handle close button click - closes the application"""
+        """Handle close session button click - closes the application"""
         self.close_app_clicked.emit()
 
     def position_near_button(self, button_widget):
